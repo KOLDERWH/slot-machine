@@ -72,6 +72,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import SlotButtons from './cpns/Slot-Buttons.vue';
+import runLottery from "../util/slot"
 
 const score=ref({
     bar:{
@@ -116,7 +117,6 @@ const score=ref({
     },
 })
 
-
 const rewardList={
     "apple":5,
     "s-apple":2,
@@ -136,7 +136,7 @@ const rewardList={
     "s-bar":25,
 }
 
-const  reward2coin_btn = new Audio("./src/assets/audio/reward2coin.wav")
+const  reward2coin_btn = new Audio("./assets/audio/reward2coin.wav")
 // const  bgm = new Audio("./src/assets/audio/bgm.wav")
 
 const gamebody=ref()
@@ -155,12 +155,6 @@ const config=ref({
     coinScore:20,
     rewardScore:0,
 })
-
-// setTimeout(() => {
-//         bgm.currentTime = 0;
-//         bgm.loop = true
-//         bgm.play()
-// }, 2000);
 
 // 起始点
 let startIndex = config.value.count
@@ -285,10 +279,23 @@ const clearScore=()=>{
 }
 
 const getRewardIndex=()=>{
-    let rewardNum = Math.floor( Math.random()*24+1)
+    const probabilitys = [
+    50, 75, 20, 5, 30, 80, 75,
+    100, 25, 10, 30, 25,
+    50, 75, 70, 20, 30, 25, 50,
+    20, 70, 10, 30, 25];
+    
+
+
+    let rewardNum =  runLottery(probabilitys)
+    // let rewardNum = Math.floor( Math.random()*24+1)
     if(config.value.luckcount > 0 &&(rewardNum == 10 || rewardNum == 22)){
-        rewardNum =getIndex(Math.floor( Math.random()*11)) 
+        rewardNum =getIndex(rewardNum+Math.floor( Math.random()*11)) 
     }
+
+    // if(config.value.luckcount > 0 &&(rewardNum == 10 || rewardNum == 22)){
+    //     rewardNum =getIndex(Math.floor( Math.random()*11)) 
+    // }
     return  rewardNum
 }
 

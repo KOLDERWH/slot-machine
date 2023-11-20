@@ -32,9 +32,9 @@ const prop = defineProps({
     }
 })
 
-const  audio_btn = new Audio("./src/assets/audio/button.mp3")
-const  start_btn = new Audio("./src/assets/audio/start-btn.wav")
-const  reset_btn = new Audio("./src/assets/audio/reset.wav")
+const  audio_btn = new Audio("./assets/audio/button.mp3")
+const  start_btn = new Audio("./assets/audio/start-btn.wav")
+const  reset_btn = new Audio("./assets/audio/reset.wav")
 const emit = defineEmits()
 
 const click_btn=ref("")
