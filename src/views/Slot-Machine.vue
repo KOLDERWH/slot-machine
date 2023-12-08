@@ -257,11 +257,11 @@ const goodLuck = ()=>{
 //结束游戏
 const stopwheel=()=>{
     config.value.count =getIndex(config.value.count+3);
+        config.value.isRuning = false
         config.value.loopCount=0;
         clearInterval(start)
         start=null
         setTimeout(() => {
-            config.value.isRuning = false
             if(config.value.luckcount>0){
                 startGame()
                 config.value.luckcount--;
@@ -279,12 +279,17 @@ const clearScore=()=>{
 }
 
 const getRewardIndex=()=>{
-    const probabilitys = [
-    50, 75, 20, 5, 30, 80, 75,
-    100, 25, 10, 30, 25,
-    50, 75, 70, 20, 30, 25, 50,
-    20, 70, 10, 30, 25];
+    // const probabilitys2 = [
+    // 50, 75, 20, 5, 30, 80, 75,
+    // 100, 25, 10, 30, 25,
+    // 50, 75, 70, 20, 30, 25, 50,
+    // 20, 70, 10, 30, 25];
     
+    const probabilitys = [
+    20, 12, 4, 1, 20, 45, 10,
+    25, 100, 10, 20, 110,
+    20, 12, 130, 20, 45, 105, 10,
+    30, 120, 10, 20, 101];
 
 
     let rewardNum =  runLottery(probabilitys)
@@ -322,6 +327,8 @@ const startGame=()=>{
 
     // 游戏在运行或者抽到luck跳过
     if(!config.value.isRuning && config.value.luckcount <= 0){
+        console.log(config.value.isRuning);
+        console.log(config.value.count);
         if(config.value.rewardScore){
             reward2coin_btn.currentTime = 0;
             reward2coin_btn.play();
