@@ -74,7 +74,6 @@ import { onMounted, ref } from 'vue';
 import SlotButtons from './cpns/Slot-Buttons.vue';
 import runLottery from "../util/slot"
 
-
 const score=ref({
     bar:{
         value:100,
@@ -137,7 +136,8 @@ const rewardList={
     "s-bar":25,
 }
 
-const  reward2coin_btn = new Audio("./assets/audio/reward2coin.wav")
+import reward2coin_btnAud from '@/assets/audio/reward2coin.wav';
+const  reward2coin_btn = new Audio(reward2coin_btnAud)
 // const  bgm = new Audio("./src/assets/audio/bgm.wav")
 
 const gamebody=ref()
