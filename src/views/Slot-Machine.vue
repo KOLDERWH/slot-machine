@@ -20,7 +20,7 @@
                 <td class="fruit fruit7 lemon">{{score.lemon.icon}}✖10</td>
                 <tr>
                     <td class="fruit fruit24  s-bell small">{{score.bell.icon}}✖2</td>
-                    <td colspan="5" rowspan="5" class="slot-bg"></td>
+                    <td colspan="5" rowspan="5" class="slot-bg" ></td>
                     <td class="fruit fruit8  watermelon">{{score.watermelon.icon}}✖10</td>
                 </tr>
                 <tr>
@@ -73,6 +73,7 @@
 import { onMounted, ref } from 'vue';
 import SlotButtons from './cpns/Slot-Buttons.vue';
 import runLottery from "../util/slot"
+
 
 const score=ref({
     bar:{
@@ -441,7 +442,7 @@ const wheelinterval = (rewardIndex,speed=30)=>{
  
 
     .slot-bg {
-        background: url("./src/assets/img/bg.png") center;
+        background: url("../assets/img/bg.png") center;
     }
     .icon-score {   
         justify-content: center;

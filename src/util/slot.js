@@ -41,16 +41,18 @@ function runLottery(awards, probabilitys) {
     return aword;
 }
 
+export default runLottery
+
 // test
 
-// 奖池
-const a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24];
-// 概率
-const b = [
-    20, 12, 4, 1, 20, 45, 10,
-    25, 100, 10, 20, 110,
-    20, 12, 130, 20, 45, 105, 10,
-    30, 120, 10, 20, 101];
+// // 奖池
+// const a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24];
+// // 概率
+// const b = [
+//     20, 12, 4, 1, 20, 45, 10,
+//     25, 100, 10, 20, 110,
+//     20, 12, 130, 20, 45, 105, 10,
+//     30, 120, 10, 20, 101];
 
 
 // console.log(runLottery(a, b));
@@ -71,26 +73,26 @@ const b = [
 // 0.02=0.01+0.01 luck 10+10
 
 // 使用多条数据，测试平均概率
-const result = {};
-for (let k = 0; k < 1000; k++) {
-    const rand = runLottery(a, b);
-    // const rand = runLottery(b);
-    if (!result[rand]) {
-        result[rand] = 1;
-    } else {
-        result[rand] += 1;
-    }
-}
+// const result = {};
+// for (let k = 0; k < 1000; k++) {
+//     const rand = runLottery(a, b);
+//     // const rand = runLottery(b);
+//     if (!result[rand]) {
+//         result[rand] = 1;
+//     } else {
+//         result[rand] += 1;
+//     }
+// }
 
-const count = a.reduce((ac, cv) => {
-    if (result[cv]) {
-        ac += result[cv];
-    }
-    // console.log("ac" + ac);
-    return ac;
-}, 0);
+// const count = a.reduce((ac, cv) => {
+//     if (result[cv]) {
+//         ac += result[cv];
+//     }
+//     // console.log("ac" + ac);
+//     return ac;
+// }, 0);
 
-a.forEach(v => {
-    console.log(v, result[v], (result[v] || 0) / count);
-    // console.log(result);
-});
+// a.forEach(v => {
+//     console.log(v, result[v], (result[v] || 0) / count);
+//     // console.log(result);
+// });
