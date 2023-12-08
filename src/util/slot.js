@@ -5,7 +5,8 @@
  * @param {Array} probabilitys 中奖概率，这个跟
  * @return {Any} 返回 awords 数组中的某一项
  */
-function runLottery(awards, probabilitys) {
+// function runLottery(awards, probabilitys) {
+function runLottery(probabilitys) {
     // if (!Array.isArray(awards)) {
     //     throw new TypeError('Expected the awards to be an arry.');
     // }
