@@ -98,7 +98,7 @@
 
 <script setup lang="ts">
 import reward2coin_btnAud from '@/assets/audio/reward2coin.wav';
-import mainBgm from '@/assets/audio/Pixel-Peeker-Polka-faster(chosic.com).mp3';
+import mainBgm from '@/assets/audio/PixelPeekerPolka.mp3';
 import SlotButtons from './cpns/Slot-Buttons.vue';
 import runLottery from '../util/slot.ts';
 import { onMounted, ref } from 'vue';
@@ -173,15 +173,14 @@ const rewardList = {
 };
 
 const config = ref({
-  count: 1, //current position
+  startIdx: 1, //current position
   loopCount: 0,
   stopLoop: 3,
   isRuning: false,
   isCoin: false,
-  isluck: false,
   luckcount: 0,
   speed: 18,
-  coinScore: 2000,
+  coinScore: 20,
   rewardScore: 0,
   rewardIndex: 1,
   giftList: [] as Array<HTMLElement>,
@@ -198,12 +197,7 @@ const stateMachine = ref({
 // 用于记录前一次的数据
 let preCast = { copyed: false };
 
-// 起始点
-let startIndex = config.value.count;
-
-let startAniamtion = null;
-
-onMounted(() => (config.value.count = getRewardIndex()));
+onMounted(() => (config.value.startIdx = getRewardIndex()));
 
 // 点击进入开始游戏并播放背景音乐
 const startGameAndPlayMusic = () => {
@@ -216,33 +210,43 @@ const animation = () => {
   requestAnimationFrame(animation);
   console.log('state', stateMachine.value.state);
 
-  if (stateMachine.value.state === 'updateReward') {
-    config.value.rewardScore--;
-    config.value.coinScore += 1;
-    // 如果奖励达到了最终值，清除定时器
-    if (config.value.rewardScore <= 0) {
-      config.value.rewardScore = 0;
-      reawrdBgm.pause();
-      clearScore();
-      stateMachine.value.state = 'idle';
-    }
-    return;
-  }
   const now = performance.now(); // 获取当前时间戳
   const deltaTime = now - lastTime.value; // 计算自上次更新以来经过的时间
+  if (deltaTime >= 32) {
+    if (stateMachine.value.state === 'updateReward') {
+      lastTime.value = now;
+      config.value.rewardScore--;
+      config.value.coinScore += 1;
+      lastTime.value = performance.now();
+      // 如果奖励达到了最终值，清除定时器
+      if (config.value.rewardScore <= 0) {
+        config.value.rewardScore = 0;
+        reawrdBgm.pause();
+        clearScore();
+        stateMachine.value.state = 'idle';
+      }
+      return;
+    }
+    if (deltaTime >= config.value.speed) {
+      lastTime.value = now;
 
-  if (deltaTime >= config.value.speed) {
-    lastTime.value = now;
-
-    // 控制更新频率
-    switch (stateMachine.value.state) {
-      case 'idle':
-        break;
-      case 'pause':
-        break;
-      case 'normalRunning':
-        startwheel(config.value.rewardIndex);
-        break;
+      // 控制更新频率
+      switch (stateMachine.value.state) {
+        case 'idle':
+          config.value.speed = 18;
+          break;
+        case 'pause':
+          setTimeout(() => {
+            if (config.value.luckcount > 0) {
+              startGame();
+              config.value.luckcount--;
+            }
+          }, 600);
+          break;
+        case 'normalRunning':
+          startwheel(config.value.rewardIndex);
+          break;
+      }
     }
   }
 };
@@ -251,20 +255,10 @@ const startGame = () => {
   // 游戏在运行或者抽到luck跳过
   if (!config.value.isRuning && config.value.luckcount <= 0) {
     console.log('isRuning', config.value.isRuning);
-    console.log('startPosition', config.value.count);
+    console.log('startPosition', config.value.startIdx);
     if (config.value.rewardScore) {
       reward2coin_btn.currentTime = 0;
       reward2coin_btn.play();
-      // if (rewardInterval) {
-      //   config.value.coinScore += config.value.rewardScore;
-      //   config.value.rewardScore = 0;
-      //   console.log('直接将剩余奖励加到 coinScore');
-      //   reawrdBgm.pause();
-      //   clearScore();
-      //   stateMachine.value.state = 'idle';
-      //   return;
-      // }
-      // updateReward();
       stateMachine.value.state = 'updateReward';
       return;
     }
@@ -291,7 +285,7 @@ const startGame = () => {
   }
 
   //没投币就退出
-  if (!config.value.isCoin || startAniamtion) {
+  if (!config.value.isCoin || stateMachine.value.state === 'normalRunning') {
     return;
   }
   const rewardIndex = getRewardIndex();
@@ -301,14 +295,13 @@ const startGame = () => {
 
   config.value.rewardIndex = rewardIndex;
   lastTime.value = performance.now();
-  stateMachine.value.state = 'normalRunning';
   config.value.isRuning = true;
-  startIndex = config.value.count;
+  stateMachine.value.state = 'normalRunning';
 };
 
 //结束游戏
 const stopwheel = () => {
-  config.value.count = getIndex(config.value.count + 3);
+  config.value.startIdx = getIndex(config.value.startIdx + 3);
   config.value.isRuning = false;
   stateMachine.value.state = 'idle';
   config.value.loopCount = 0;
@@ -316,7 +309,7 @@ const stopwheel = () => {
 
 // 开始旋转
 const startwheel = (rewardIndex: number) => {
-  const startIdx = config.value.count;
+  const startIdx = config.value.startIdx;
   const fruitCurrent: HTMLElement = gamebody.value.querySelector(
     `.fruit${startIdx}`
   );
@@ -341,6 +334,9 @@ const startwheel = (rewardIndex: number) => {
   }
   if (fruitCurrent3.classList.contains('active2')) {
     fruitCurrent3.classList.toggle('active2');
+  }
+  if (fruitCurrent3.classList.contains('active')) {
+    fruitCurrent3.classList.toggle('active');
   }
   if (fruitCurrent4.classList.contains('active3')) {
     fruitCurrent4.classList.toggle('active3');
@@ -388,11 +384,11 @@ const startwheel = (rewardIndex: number) => {
   fruitCurrent2.classList.add('active2');
   fruitCurrent3.classList.add('active3');
 
-  config.value.count++;
+  config.value.startIdx++;
   //加圈数
-  if (config.value.count > 24) {
+  if (config.value.startIdx > 24) {
     config.value.loopCount++;
-    config.value.count = 1;
+    config.value.startIdx = 1;
   }
 };
 
@@ -435,17 +431,13 @@ const goodLuck = (isFirst: boolean) => {
   if (isFirst) {
     config.value.luckcount = Math.floor(Math.random() * 3 + 1);
     config.value.luckcount = Math.max(4, config.value.luckcount);
+    config.value.loopCount = 0;
+    config.value.speed = 16;
   }
   console.log('luckCount', config.value.luckcount);
   console.log('stop');
 
   stateMachine.value.state = 'pause';
-  setTimeout(() => {
-    if (config.value.luckcount > 0) {
-      startGame();
-      config.value.luckcount--;
-    }
-  }, 600);
 };
 
 // 清空下注
@@ -483,11 +475,17 @@ const copyCoinStatus = (coinScore, backup) => {
 };
 
 const clearRwardList = () => {
+  if (!config.value.giftList.length) {
+    return;
+  }
   config.value.giftList.map((item) => {
     if (item.classList.contains('rewardList')) {
       item.classList.toggle('rewardList');
     }
   });
+  config.value.giftList[config.value.giftList.length - 1].classList.add(
+    'active'
+  );
   config.value.giftList = [];
 };
 </script>
