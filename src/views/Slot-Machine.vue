@@ -1,12 +1,28 @@
 <template>
   <div class="machine">
-    <div class="body">
+    <div
+      id="blocker"
+      :style="{ display: isBlocked ? 'block' : 'none' }"
+      @click="startGameAndPlayMusic"
+    >
+      <div id="instructions">
+        <p style="font-size: 48px">Click to play</p>
+      </div>
+    </div>
+    <div class="dashboard">
       <table>
         <thead>
           <tr>
-            <th class="top" colspan="3">WIN: {{ config.rewardScore }}</th>
+            <th class="top" colspan="3">
+              WIN: <span class="score">{{ config.rewardScore }}</span>
+            </th>
             <th class="top"></th>
-            <th class="top" colspan="3">CREDIT: {{ config.coinScore }}</th>
+            <th class="top" colspan="3">
+              CREDIT:
+              <span class="score">
+                {{ config.coinScore }}
+              </span>
+            </th>
           </tr>
         </thead>
 
@@ -80,10 +96,18 @@
   </div>
 </template>
 
-<script setup>
-import { onMounted, ref } from 'vue';
+<script setup lang="ts">
+import reward2coin_btnAud from '@/assets/audio/reward2coin.wav';
+import mainBgm from '@/assets/audio/Pixel-Peeker-Polka-faster(chosic.com).mp3';
 import SlotButtons from './cpns/Slot-Buttons.vue';
-import runLottery from '../util/slot';
+import runLottery from '../util/slot.ts';
+import { onMounted, ref } from 'vue';
+
+//music
+const reward2coin_btn = new Audio(reward2coin_btnAud);
+const reawrdBgm = new Audio(mainBgm);
+
+const gamebody = ref();
 
 const score = ref({
   bar: {
@@ -147,16 +171,8 @@ const rewardList = {
   's-bar': 25,
 };
 
-import reward2coin_btnAud from '@/assets/audio/reward2coin.wav';
-const reward2coin_btn = new Audio(reward2coin_btnAud);
-// const  bgm = new Audio("./src/assets/audio/bgm.wav")
-
-const gamebody = ref();
-
-onMounted(() => (config.value.count = getRewardIndex()));
-
 const config = ref({
-  count: 1,
+  count: 1, //current position
   loopCount: 0,
   stopLoop: 3,
   isRuning: false,
@@ -164,12 +180,98 @@ const config = ref({
   isluck: false,
   luckcount: 0,
   speed: 30,
-  coinScore: 20,
+  coinScore: 2000,
   rewardScore: 0,
+  giftList: [],
 });
+
+// 用于控制遮罩显示
+const isBlocked = ref(true);
+
+// 用于记录前一次的数据
+let preCast = { copyed: false };
 
 // 起始点
 let startIndex = config.value.count;
+
+let rewardInterval;
+let startAniamtion = null;
+
+onMounted(() => (config.value.count = getRewardIndex()));
+
+// 点击进入开始游戏并播放背景音乐
+const startGameAndPlayMusic = () => {
+  isBlocked.value = false; // 隐藏遮罩
+  //   reawrdBgm.play();
+};
+
+const startGame = () => {
+  // 游戏在运行或者抽到luck跳过
+  if (!config.value.isRuning && config.value.luckcount <= 0) {
+    console.log('isRuning', config.value.isRuning);
+    console.log('startPosition', config.value.count);
+    if (config.value.rewardScore) {
+      reward2coin_btn.currentTime = 0;
+      reward2coin_btn.play();
+      if (rewardInterval) {
+        config.value.coinScore += config.value.rewardScore;
+        config.value.rewardScore = 0;
+        console.log('直接将剩余奖励加到 coinScore');
+        return;
+      }
+      updateReward(config.value.rewardScore);
+      return;
+    }
+    //重复上一次
+    clearRwardList();
+    if (preCast.copyed) {
+      let current_cast = getCoinCount(preCast);
+      if (config.value.coinScore >= current_cast) {
+        //和上一次一样下注
+        console.log('do it again');
+        for (let item in score.value) {
+          score.value[item].coin = preCast[item];
+        }
+        // 扣分
+        config.value.coinScore -= current_cast;
+        config.value.isCoin = true;
+      } else {
+        // 分数不够
+        preCast.copyed = false;
+        return;
+      }
+    }
+  }
+
+  //没投币就退出
+  if (!config.value.isCoin || startAniamtion) {
+    return;
+  }
+  const rewardIndex = getRewardIndex();
+
+  //记录本次下注
+  copyCoinStatus(score.value, preCast);
+
+  config.value.isRuning = true;
+  startIndex = config.value.count;
+
+  wheelinterval(rewardIndex, config.value.speed);
+};
+
+//结束游戏
+const stopwheel = () => {
+  config.value.count = getIndex(config.value.count + 3);
+  config.value.isRuning = false;
+  config.value.loopCount = 0;
+  clearInterval(startAniamtion);
+  startAniamtion = null;
+  setTimeout(() => {
+    if (config.value.luckcount > 0) {
+      startGame();
+      config.value.luckcount--;
+    }
+  }, 600);
+};
 
 const getIndex = (count) => {
   let result = count;
@@ -181,15 +283,16 @@ const getIndex = (count) => {
   }
   return result;
 };
+
 // 加分
 const addScore = (item) => {
   if (
     !config.value.isRuning &&
     config.value.coinScore &&
-    config.value.rewardScore == 0
+    config.value.rewardScore === 0
   ) {
     config.value.isCoin = true;
-    preCast = {};
+    preCast.copyed = false;
     score.value[item].coin++;
     config.value.coinScore--;
   }
@@ -205,75 +308,9 @@ const resetScore = () => {
   }
 };
 
-// 开始旋转
-const startwheel = (rewardIndex) => {
-  const fruitnow = gamebody.value.querySelector(`.fruit${config.value.count}`);
-  const fruitnow1 = gamebody.value.querySelector(
-    `.fruit${getIndex(config.value.count - 1)}`
-  );
-  const fruitnow2 = gamebody.value.querySelector(
-    `.fruit${getIndex(config.value.count - 2)}`
-  );
-  const fruitnow3 = gamebody.value.querySelector(
-    `.fruit${getIndex(config.value.count - 3)}`
-  );
-  const fruitnow4 = gamebody.value.querySelector(
-    `.fruit${getIndex(config.value.count - 4)}`
-  );
-
-  if (fruitnow1.classList.contains('active')) {
-    fruitnow1.classList.toggle('active');
-  }
-  if (fruitnow2.classList.contains('active1')) {
-    fruitnow2.classList.toggle('active1');
-  }
-  if (fruitnow3.classList.contains('active2')) {
-    fruitnow3.classList.toggle('active2');
-  }
-  if (fruitnow4.classList.contains('active3')) {
-    fruitnow4.classList.toggle('active3');
-  }
-  if (fruitnow4.classList.contains('active')) {
-    fruitnow4.classList.toggle('active');
-  }
-
-  fruitnow.classList.add('active');
-
-  //结束游戏
-  if (
-    config.value.loopCount == config.value.stopLoop &&
-    config.value.count == rewardIndex
-  ) {
-    const oriname = fruitnow.classList[2];
-    if (oriname == 'good-luck') {
-      goodLuck();
-      return;
-    }
-    stopwheel();
-    const name = fruitnow.classList[2].replace('s-', '');
-    config.value.rewardScore += score.value[name].coin
-      ? rewardList[oriname] * score.value[name].coin
-      : 0;
-    if (config.value.rewardScore == 0) clearScore();
-    return;
-  }
-
-  //清空样式
-  fruitnow1.classList.add('active1');
-  fruitnow2.classList.add('active2');
-  fruitnow3.classList.add('active3');
-
-  config.value.count++;
-  //加圈数
-  if (config.value.count > 24) {
-    config.value.loopCount++;
-    config.value.count = 1;
-  }
-};
-
 const goodLuck = () => {
   config.value.luckcount = Math.floor(Math.random() * 3 + 1);
-  console.log(config.value.luckcount);
+  console.log('luckCount', config.value.luckcount);
   console.log('stop');
   stopwheel();
   // setTimeout(() => {
@@ -282,20 +319,6 @@ const goodLuck = () => {
   // }, 1500);
 };
 
-//结束游戏
-const stopwheel = () => {
-  config.value.count = getIndex(config.value.count + 3);
-  config.value.isRuning = false;
-  config.value.loopCount = 0;
-  clearInterval(start);
-  start = null;
-  setTimeout(() => {
-    if (config.value.luckcount > 0) {
-      startGame();
-      config.value.luckcount--;
-    }
-  }, 600);
-};
 // 清空下注
 const clearScore = () => {
   if (config.value.luckcount <= 0) {
@@ -307,31 +330,13 @@ const clearScore = () => {
 };
 
 const getRewardIndex = () => {
-  // const probabilitys2 = [
-  // 50, 75, 20, 5, 30, 80, 75,
-  // 100, 25, 10, 30, 25,
-  // 50, 75, 70, 20, 30, 25, 50,
-  // 20, 70, 10, 30, 25];
-
-  const probabilitys = [
-    20, 12, 4, 1, 20, 45, 10, 25, 100, 10, 20, 110, 20, 12, 130, 20, 45, 105,
-    10, 30, 120, 10, 20, 101,
-  ];
-
-  let rewardNum = runLottery(probabilitys);
-  // let rewardNum = Math.floor( Math.random()*24+1)
+  let rewardNum = runLottery() + 1;
   if (config.value.luckcount > 0 && (rewardNum == 10 || rewardNum == 22)) {
     rewardNum = getIndex(rewardNum + Math.floor(Math.random() * 11));
   }
 
-  // if(config.value.luckcount > 0 &&(rewardNum == 10 || rewardNum == 22)){
-  //     rewardNum =getIndex(Math.floor( Math.random()*11))
-  // }
   return rewardNum;
 };
-
-// 用于记录前一次的数据
-let preCast = {};
 
 //计算金币总数
 const getCoinCount = (coinpool) => {
@@ -343,73 +348,158 @@ const getCoinCount = (coinpool) => {
 };
 
 const copyCoinStatus = (coinScore, backup) => {
+  backup.copyed = true;
   for (let item in coinScore) {
     backup[item] = coinScore[item].coin;
   }
 };
 
-const startGame = () => {
-  // 游戏在运行或者抽到luck跳过
-  if (!config.value.isRuning && config.value.luckcount <= 0) {
-    console.log(config.value.isRuning);
-    console.log(config.value.count);
-    if (config.value.rewardScore) {
-      reward2coin_btn.currentTime = 0;
-      reward2coin_btn.play();
-      config.value.coinScore += config.value.rewardScore;
+const clearRwardList = () => {
+  config.value.giftList.map((item) => {
+    if (item.classList.contains('rewardList')) {
+      item.classList.toggle('rewardList');
+    }
+  });
+  config.value.giftList = [];
+};
+
+const updateReward = () => {
+  if (rewardInterval) {
+    clearInterval(rewardInterval);
+  }
+
+  let currentReward = 0;
+  rewardInterval = setInterval(() => {
+    // 每次增加一点奖励
+    config.value.rewardScore--;
+    config.value.coinScore += 1;
+    // 如果奖励达到了最终值，清除定时器
+    if (config.value.rewardScore <= 0) {
+      clearInterval(rewardInterval);
       config.value.rewardScore = 0;
-      clearScore();
-      return;
+      rewardInterval = null;
     }
-    //重复上一次
-    if (preCast.apple) {
-      let current_cast = getCoinCount(preCast);
-      if (config.value.coinScore >= current_cast) {
-        //和上一次一样下注
-        console.log('do it again');
-        for (let item in score.value) {
-          score.value[item].coin = preCast[item];
-        }
-        // 扣分
-        config.value.coinScore -= current_cast;
-        config.value.isCoin = true;
-      } else {
-        // 分数不够
-        preCast = {};
-        return;
-      }
-    }
-  }
-
-  //没投币就退出
-  if (!config.value.isCoin || start) {
-    return;
-  }
-  const rewardIndex = getRewardIndex();
-
-  //记录本次下注
-  copyCoinStatus(score.value, preCast);
-
-  config.value.isRuning = true;
-  startIndex = config.value.count;
-
-  wheelinterval(rewardIndex, config.value.speed);
+  }, 40); // 每30毫秒更新一次
 };
 
 // interval函数执行旋转
-// 初始化计数器
-let start = null;
 const wheelinterval = (rewardIndex, speed = 30) => {
-  start = setInterval(() => {
+  startAniamtion = setInterval(() => {
     startwheel(rewardIndex);
   }, speed);
+};
+
+// 开始旋转
+const startwheel = (rewardIndex) => {
+  const startIdx = config.value.count;
+  const fruitCurrent = gamebody.value.querySelector(`.fruit${startIdx}`);
+  const fruitCurrent1 = gamebody.value.querySelector(
+    `.fruit${getIndex(startIdx - 1)}`
+  );
+  const fruitCurrent2 = gamebody.value.querySelector(
+    `.fruit${getIndex(startIdx - 2)}`
+  );
+  const fruitCurrent3 = gamebody.value.querySelector(
+    `.fruit${getIndex(startIdx - 3)}`
+  );
+  const fruitCurrent4 = gamebody.value.querySelector(
+    `.fruit${getIndex(startIdx - 4)}`
+  );
+
+  if (fruitCurrent1.classList.contains('active')) {
+    fruitCurrent1.classList.toggle('active');
+  }
+  if (fruitCurrent2.classList.contains('active1')) {
+    fruitCurrent2.classList.toggle('active1');
+  }
+  if (fruitCurrent3.classList.contains('active2')) {
+    fruitCurrent3.classList.toggle('active2');
+  }
+  if (fruitCurrent4.classList.contains('active3')) {
+    fruitCurrent4.classList.toggle('active3');
+  }
+
+  //结束游戏
+  if (
+    config.value.loopCount >= config.value.stopLoop &&
+    startIdx === rewardIndex
+  ) {
+    fruitCurrent.classList.add('rewardList');
+    const rewardName = fruitCurrent.classList[2];
+    config.value.giftList.push(fruitCurrent);
+
+    if (rewardName === 'good-luck') {
+      goodLuck();
+      return;
+    }
+    stopwheel();
+
+    //calc reward
+    const name = fruitCurrent.classList[2].replace('s-', '');
+    config.value.rewardScore += score.value[name].coin
+      ? rewardList[rewardName] * score.value[name].coin
+      : 0;
+    if (config.value.rewardScore == 0) clearScore();
+    return;
+  }
+
+  //添加样式
+  fruitCurrent.classList.add('active');
+  fruitCurrent1.classList.add('active1');
+  fruitCurrent2.classList.add('active2');
+  fruitCurrent3.classList.add('active3');
+
+  config.value.count++;
+  //加圈数
+  if (config.value.count > 24) {
+    config.value.loopCount++;
+    config.value.count = 1;
+  }
 };
 </script>
 
 <style lang="less" scoped>
+@font-face {
+  font-family: 'Pacifico'; /* 给字体起一个名字 */
+  src: url('../assets/font/Pacifico.ttf') format('truetype'); /* 指定字体文件路径和格式 */
+  font-weight: normal; /* 指定字体的粗细 */
+  font-style: normal; /* 指定字体的样式 */
+}
+@font-face {
+  font-family: 'digital7'; /* 给字体起一个名字 */
+  //   src: url('../assets/font/digital_7/digital-7.ttf') format('truetype'); /* 指定字体文件路径和格式 */
+  src: url('../assets/font/digital_7/digital-7(mono).ttf') format('truetype'); /* 指定字体文件路径和格式 */
+  font-weight: normal; /* 指定字体的粗细 */
+  font-style: normal; /* 指定字体的样式 */
+}
+
+#blocker {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-weight: bold;
+}
+
+#instructions {
+  font-family: 'Pacifico', 'Caveat', cursive; /* 优先使用流行手写字体 */
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  text-align: center;
+  font-size: 14px;
+  cursor: pointer;
+}
 .machine {
   user-select: none;
-  .body {
+  .dashboard {
+    margin: 0 10px;
     table {
       border-collapse: collapse;
       margin: 0 auto;
@@ -424,10 +514,15 @@ const wheelinterval = (rewardIndex, speed = 30) => {
         height: 70px;
       }
       .top {
-        color: #a00;
         font-size: 24px;
-        font-weight: 700;
         border: none;
+        .score {
+          font-size: 32px;
+          font-weight: bold;
+          font-family: 'digital7', 'Caveat', cursive;
+          // color: #a00;
+          color: #b10c21;
+        }
       }
       .small {
         font-size: 18px;
@@ -444,17 +539,91 @@ const wheelinterval = (rewardIndex, speed = 30) => {
       .bell {
         background-position: 200px 100px;
       }
+      //   .active {
+      //     background: rgba(230, 0, 0, 0.7);
+      //     box-shadow: 0 0 10px rgba(230, 0, 0, 0.8), 0 0 20px rgba(230, 0, 0, 0.6);
+      //   }
+      //   .active1 {
+      //     background: rgba(0, 230, 0, 0.65);
+      //     box-shadow: 0 0 10px rgba(0, 230, 0, 0.8), 0 0 20px rgba(0, 230, 0, 0.6);
+      //   }
+      //   .active2 {
+      //     // background: rgba(0, 0, 220, 0.6);
+      //     // box-shadow: 0 0 10px rgba(0, 0, 220, 0.8), 0 0 20px rgba(0, 0, 220, 0.6);
+      //     background: rgba(230, 0, 0, 0.7);
+      //     box-shadow: 0 0 10px rgba(230, 0, 0, 0.8), 0 0 20px rgba(230, 0, 0, 0.6);
+      //   }
+      //   .active3 {
+      //     // background: rgba(220, 0, 0, 0.5);
+      //     // box-shadow: 0 0 10px rgba(220, 0, 0, 0.8), 0 0 20px rgba(220, 0, 0, 0.6);
+
+      //     background: rgba(0, 230, 0, 0.65);
+      //     box-shadow: 0 0 10px rgba(0, 230, 0, 0.8), 0 0 20px rgba(0, 230, 0, 0.6);
+      //   }
+
       .active {
-        background: rgba(255, 0, 0, 0.8);
+        background: linear-gradient(
+          45deg,
+          rgba(255, 0, 0, 0.8),
+          rgba(255, 128, 0, 0.8)
+        );
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.8),
+          /* 内层红光 */ 0 0 30px rgba(255, 128, 0, 0.6),
+          /* 橙色外圈 */ 0 0 50px rgba(255, 69, 0, 0.5),
+          /* 更扩散的光晕 */ inset 0 0 10px rgba(255, 255, 0, 0.4); /* 内部泛光效果 */
+        animation: flash 1s infinite alternate; /* 添加闪烁动画 */
       }
+
       .active1 {
-        background: rgba(0, 230, 0, 0.7);
+        background: linear-gradient(
+          45deg,
+          rgba(0, 230, 0, 0.8),
+          rgba(144, 238, 144, 0.7)
+        );
+        box-shadow: 0 0 15px rgba(0, 230, 0, 0.8),
+          /* 内层绿光 */ 0 0 30px rgba(50, 205, 50, 0.6),
+          /* 浅绿色外圈 */ 0 0 50px rgba(34, 139, 34, 0.5),
+          /* 扩散的光晕 */ inset 0 0 10px rgba(144, 238, 144, 0.4); /* 内部泛光 */
+        animation: flash 1.2s infinite alternate; /* 闪烁动画 */
       }
+
       .active2 {
-        background: rgba(0, 0, 220, 0.6);
+        background: linear-gradient(
+          45deg,
+          rgba(0, 0, 220, 0.8),
+          rgba(65, 105, 225, 0.7)
+        );
+        box-shadow: 0 0 15px rgba(0, 0, 220, 0.8),
+          /* 内层蓝光 */ 0 0 30px rgba(65, 105, 225, 0.6),
+          /* 浅蓝色外圈 */ 0 0 50px rgba(25, 25, 112, 0.5),
+          /* 扩散的光晕 */ inset 0 0 10px rgba(173, 216, 230, 0.4); /* 内部泛光 */
+        animation: flash 1.4s infinite alternate; /* 闪烁动画 */
       }
+
       .active3 {
-        background: rgba(220, 0, 0, 0.5);
+        background: linear-gradient(
+          45deg,
+          rgba(220, 0, 0, 0.8),
+          rgba(255, 69, 0, 0.7)
+        );
+        box-shadow: 0 0 15px rgba(220, 0, 0, 0.8),
+          /* 内层深红光 */ 0 0 30px rgba(255, 69, 0, 0.6),
+          /* 浅红色外圈 */ 0 0 50px rgba(178, 34, 34, 0.5),
+          /* 扩散的光晕 */ inset 0 0 10px rgba(255, 160, 122, 0.4); /* 内部泛光 */
+        animation: flash 1.6s infinite alternate; /* 闪烁动画 */
+      }
+
+      .rewardList {
+        background: linear-gradient(
+          45deg,
+          rgba(255, 0, 0, 0.8),
+          rgba(255, 128, 0, 0.8)
+        );
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.8),
+          /* 内层红光 */ 0 0 30px rgba(255, 128, 0, 0.6),
+          /* 橙色外圈 */ 0 0 50px rgba(255, 69, 0, 0.5),
+          /* 更扩散的光晕 */ inset 0 0 10px rgba(255, 255, 0, 0.4); /* 内部泛光效果 */
+        animation: flash 1s infinite alternate; /* 添加闪烁动画 */
       }
     }
   }
@@ -466,13 +635,18 @@ const wheelinterval = (rewardIndex, speed = 30) => {
     justify-content: center;
     text-align: center;
     margin: 10px;
-    color: #a00;
+    // color: #a00;
     font-size: 24px;
-    font-weight: 700;
+    font-weight: 800;
     .container {
       display: flex;
       justify-content: center;
       .item {
+        .icon {
+          font-weight: bold;
+          color: #b10c21;
+          font-family: 'digital7', 'Caveat', cursive;
+        }
         width: 65px;
         height: 65px;
       }
