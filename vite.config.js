@@ -12,4 +12,14 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // 移除所有 console
+        drop_debugger: true, // 移除 debugger
+      },
+    },
+    outDir: 'example', // 指定输出目录为 example 文件夹
+  },
 });
